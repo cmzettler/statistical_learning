@@ -188,3 +188,50 @@ lasso_fit %>%
 
 Lasso is trying to very gradually remove things from the model and then
 shrunk down the values of the esimates
+
+## Cluster pokemons
+
+``` r
+pokemon_df = 
+  read_csv("data/pokemon.csv") %>% 
+  janitor::clean_names() %>% 
+  select(speed, hp)
+```
+
+    ## Rows: 800 Columns: 13
+
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (3): Name, Type 1, Type 2
+    ## dbl (9): #, Total, HP, Attack, Defense, Sp. Atk, Sp. Def, Speed, Generation
+    ## lgl (1): Legendary
+
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+pokemon_df %>% 
+  ggplot(aes(x = hp, y = speed)) + 
+  geom_point()
+```
+
+<img src="statistical_learning_files/figure-gfm/unnamed-chunk-7-1.png" width="90%" />
+
+No clear pattern
+
+Use k-means to identify clusters.
+
+``` r
+kmeans_fit = 
+  kmeans(x = pokemon_df, centers = 3)
+```
+
+``` r
+pokemon_df %>% 
+  broom::augment(kmeans_fit, .) %>% 
+  ggplot(aes(x = hp, y = speed, color = .cluster)) + 
+  geom_point()
+```
+
+<img src="statistical_learning_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
