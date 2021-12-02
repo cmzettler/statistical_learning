@@ -23,6 +23,21 @@ library(viridis)
     ## Loading required package: viridisLite
 
 ``` r
+library(glmnet)
+```
+
+    ## Loading required package: Matrix
+
+    ## 
+    ## Attaching package: 'Matrix'
+
+    ## The following objects are masked from 'package:tidyr':
+    ## 
+    ##     expand, pack, unpack
+
+    ## Loaded glmnet 4.1-3
+
+``` r
 library(modelr)
 library(mgcv)
 ```
@@ -89,3 +104,87 @@ ANSWER
 
 Tuning parameter selection - dial lambda up and down to decide how much
 emphasis to put on the penalty piece - use cross validation
+
+CLUSTERING - data-drive subgroups (non-overlapping, every datapoint is
+in 1 and only 1 group) - data is 1 subgrou are more similar to each
+other than to points in another group - have to define “similarity” -
+we’ll do k-means method –&gt;
+
+k-means method - randomly assign every point to a given group -
+calculate mean - reassign based on what point is closest to which mean
+(centroid) - continue until everything stops
+
+STARTING CODING
+
+## LASSO
+
+Predicting birthweight
+
+``` r
+set.seed(11)
+
+bwt_df = 
+  read_csv("data/birthweight.csv") %>% 
+  janitor::clean_names() %>%
+  mutate(
+    babysex = as.factor(babysex),
+    babysex = fct_recode(babysex, "male" = "1", "female" = "2"),
+    frace = as.factor(frace),
+    frace = fct_recode(frace, "white" = "1", "black" = "2", "asian" = "3", 
+                       "puerto rican" = "4", "other" = "8"),
+    malform = as.logical(malform),
+    mrace = as.factor(mrace),
+    mrace = fct_recode(mrace, "white" = "1", "black" = "2", "asian" = "3", 
+                       "puerto rican" = "4")) %>% 
+  sample_n(200)
+```
+
+    ## Rows: 4342 Columns: 20
+
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## dbl (20): babysex, bhead, blength, bwt, delwt, fincome, frace, gaweeks, malf...
+
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+For Lasso, you want a lot of predictors relative to the number of
+observations, so this is why we do a sample
+
+It’s December… let’s just do the lasso and move on.
+
+Lasso doesn’t want a df –&gt; it wants a matrix of predictors
+
+``` r
+y = bwt_df %>% pull(bwt)
+x = model.matrix(bwt ~ ., bwt_df)
+```
+
+Let’s fit lasso,
+
+``` r
+lambda_grid = 10 ^ seq(3, -2, by = -0.1)
+
+lasso_fit = glmnet(x, y, lambda = lambda_grid)
+
+lasso_cv = cv.glmnet(x, y, lambda = lambda_grid)
+
+lasso_opt = lasso_cv$lambda.min
+```
+
+Can we actually see what we did?
+
+``` r
+lasso_fit %>% 
+  broom::tidy() %>% 
+  complete(term, lambda, fill = list(estimate = 0)) %>% 
+  ggplot(aes(x = log(lambda), y = estimate, group = term, color = term)) + 
+  geom_path() + 
+  geom_vline(xintercept = log(lasso_opt))
+```
+
+<img src="statistical_learning_files/figure-gfm/unnamed-chunk-5-1.png" width="90%" />
+
+Lasso is trying to very gradually remove things from the model and then
+shrunk down the values of the esimates
